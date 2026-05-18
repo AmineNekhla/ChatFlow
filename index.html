@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ChatFlow — Real-Time Messaging</title>
+<meta name="description" content="Real-time chat messaging app with group channels, typing indicators, and emoji support."/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<style>
+:root{--bg:#0d0d14;--bg2:#13131f;--bg3:#1a1a2e;--card:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.08);--text:#e8e8ed;--muted:#9a9ab0;--dim:#5a5a70;--accent:#7c3aed;--accent2:#4f8ef7;--green:#10b981;--r:12px;--tr:0.2s ease}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.app{display:grid;grid-template-columns:300px 1fr;grid-template-rows:56px 1fr;height:100vh}
+/* Sidebar top */
+.sidebar-header{grid-column:1;background:var(--bg2);border-bottom:1px solid var(--border);border-right:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:10px}
+.logo{font-size:1.1rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.9rem;color:#fff}
+.sidebar-header-right{margin-left:auto;display:flex;gap:8px}
+.icon-btn{width:30px;height:30px;border-radius:8px;background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.8rem;transition:var(--tr)}
+.icon-btn:hover{background:var(--card);color:var(--text)}
+/* Chat header */
+.chat-header{grid-column:2;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px}
+.chat-header-info h3{font-size:.95rem;font-weight:600}
+.chat-header-info p{font-size:.75rem;color:var(--green);display:flex;align-items:center;gap:4px}
+.chat-header-right{margin-left:auto;display:flex;gap:8px}
+/* Sidebar body */
+.sidebar{grid-column:1;grid-row:2;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.search-wrap{padding:12px}
+.search{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
+.search input{background:none;border:none;outline:none;color:var(--text);font-size:.83rem;font-family:'Inter',sans-serif;width:100%}
+.search input::placeholder{color:var(--dim)}
+.contacts{overflow-y:auto;flex:1}
+.contact{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;transition:var(--tr);border-radius:10px;margin:2px 8px;position:relative}
+.contact:hover{background:var(--card)}
+.contact.active{background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.2)}
+.avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;color:#fff;flex-shrink:0;position:relative}
+.online-dot{width:10px;height:10px;background:var(--green);border-radius:50%;border:2px solid var(--bg2);position:absolute;bottom:0;right:0}
+.contact-info{flex:1;min-width:0}
+.contact-name{font-size:.85rem;font-weight:600}
+.contact-preview{font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.contact-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.contact-time{font-size:.68rem;color:var(--dim)}
+.badge{background:var(--accent);color:#fff;font-size:.65rem;font-weight:700;padding:2px 6px;border-radius:10px;min-width:18px;text-align:center}
+.section-label{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);padding:10px 16px 4px}
+/* Chat area */
+.chat-area{grid-column:2;grid-row:2;display:flex;flex-direction:column;overflow:hidden}
+.messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:4px}
+.msg-group{display:flex;flex-direction:column;gap:2px;margin-bottom:12px}
+.msg-row{display:flex;align-items:flex-end;gap:8px}
+.msg-row.me{flex-direction:row-reverse}
+.bubble{max-width:65%;padding:10px 14px;border-radius:16px;font-size:.87rem;line-height:1.5;word-break:break-word}
+.bubble.them{background:var(--bg3);border:1px solid var(--border);border-bottom-left-radius:4px;color:var(--text)}
+.bubble.me{background:linear-gradient(135deg,var(--accent),#5b21b6);color:#fff;border-bottom-right-radius:4px}
+.msg-time{font-size:.65rem;color:var(--dim);margin:0 4px}
+.msg-sender{font-size:.72rem;color:var(--muted);margin-bottom:3px;padding-left:48px}
+.read-receipt{color:var(--accent2);font-size:.65rem;margin-right:2px}
+.avatar-sm{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#fff;flex-shrink:0}
+/* Typing indicator */
+.typing-row{display:flex;align-items:center;gap:8px;padding:0 20px 10px}
+.typing-indicator{display:flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);padding:8px 14px;border-radius:16px;border-bottom-left-radius:4px}
+.typing-dot{width:6px;height:6px;background:var(--muted);border-radius:50%;animation:typingAnim 1.4s infinite}
+.typing-dot:nth-child(2){animation-delay:.2s}
+.typing-dot:nth-child(3){animation-delay:.4s}
+@keyframes typingAnim{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+.typing-label{font-size:.72rem;color:var(--muted);margin-left:8px}
+/* Input bar */
+.input-bar{padding:12px 20px;border-top:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:10px}
+.input-wrap{flex:1;display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:10px 14px;transition:var(--tr)}
+.input-wrap:focus-within{border-color:var(--accent)}
+.input-wrap input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:'Inter',sans-serif;font-size:.9rem}
+.input-wrap input::placeholder{color:var(--dim)}
+.input-action{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;transition:var(--tr);padding:2px}
+.input-action:hover{color:var(--accent)}
+.send-btn{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#5b21b6);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.9rem;transition:var(--tr);flex-shrink:0}
+.send-btn:hover{opacity:.85;transform:translateY(-1px)}
+/* Emoji picker */
+.emoji-picker{position:absolute;bottom:70px;left:20px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-wrap:wrap;gap:6px;max-width:280px;z-index:50;display:none}
+.emoji-picker.open{display:flex}
+.emoji{font-size:1.4rem;cursor:pointer;transition:var(--tr);border-radius:6px;padding:4px}
+.emoji:hover{background:var(--card);transform:scale(1.2)}
+.chat-area{position:relative}
+/* Date divider */
+.date-divider{display:flex;align-items:center;gap:10px;margin:12px 0}
+.date-divider::before,.date-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.date-divider span{font-size:.7rem;color:var(--dim);white-space:nowrap}
+/* Reaction */
+.reaction{display:inline-flex;align-items:center;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:2px 7px;font-size:.75rem;cursor:pointer;margin-top:4px}
+.reaction:hover{border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar header -->
+  <div class="sidebar-header">
+    <div class="logo-icon"><i class="fa-solid fa-comment-dots"></i></div>
+    <span class="logo">ChatFlow</span>
+    <div class="sidebar-header-right">
+      <button class="icon-btn" title="New chat"><i class="fa-solid fa-pen-to-square"></i></button>
+      <button class="icon-btn" title="Settings"><i class="fa-solid fa-sliders"></i></button>
+    </div>
+  </div>
+  <!-- Chat header -->
+  <div class="chat-header" id="chatHeader">
+    <div class="avatar" id="headerAvatar" style="background:linear-gradient(135deg,#7c3aed,#4f8ef7);width:36px;height:36px;font-size:.75rem">YB</div>
+    <div class="chat-header-info">
+      <h3 id="headerName">Yassine Benali</h3>
+      <p><i class="fa-solid fa-circle" style="font-size:.4rem"></i> Online</p>
+    </div>
+    <div class="chat-header-right">
+      <button class="icon-btn"><i class="fa-solid fa-phone"></i></button>
+      <button class="icon-btn"><i class="fa-solid fa-video"></i></button>
+      <button class="icon-btn"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+    </div>
+  </div>
+  <!-- Sidebar body -->
+  <div class="sidebar">
+    <div class="search-wrap">
+      <div class="search"><i class="fa-solid fa-magnifying-glass" style="color:var(--dim)"></i><input placeholder="Search conversations…" oninput="filterContacts(this.value)"/></div>
+    </div>
+    <div class="section-label">Recent</div>
+    <div class="contacts" id="contactList"></div>
+  </div>
+  <!-- Chat area -->
+  <div class="chat-area" id="chatArea">
+    <div class="messages" id="messages"></div>
+    <div class="typing-row" id="typingRow" style="display:none">
+      <div class="avatar-sm" id="typingAvatar" style="background:#7c3aed">YB</div>
+      <div class="typing-indicator">
+        <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+      </div>
+      <span class="typing-label" id="typingLabel">Yassine is typing…</span>
+    </div>
+    <div class="input-bar">
+      <div class="input-wrap">
+        <button class="input-action" id="emojiBtn" onclick="toggleEmoji()"><i class="fa-regular fa-face-smile"></i></button>
+        <input type="text" id="msgInput" placeholder="Type a message…" onkeydown="onKey(event)"/>
+        <button class="input-action" title="Attach file"><i class="fa-solid fa-paperclip"></i></button>
+      </div>
+      <button class="send-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+    <div class="emoji-picker" id="emojiPicker">
+      😀😂😍🥰😎🤩😢😅🤔👍👎❤️🔥💯🎉✅🚀💪🙏😤
+      .split('').map(e=>`<span class="emoji" onclick="addEmoji('${e}')">${e}</span>`).join('')
+    </div>
+  </div>
+</div>
+
+<script>
+const CONTACTS=[
+  {id:'yassine',name:'Yassine Benali',avatar:'YB',color:'#7c3aed',online:true,preview:'Sounds great! Let me check.',time:'2m',unread:2},
+  {id:'khalid',name:'Khalid Elhassani',avatar:'KE',color:'#4f8ef7',online:true,preview:'The design is ready for review',time:'14m',unread:0},
+  {id:'salma',name:'Salma Naciri',avatar:'SN',color:'#10b981',online:false,preview:'Thanks, I will handle it 👍',time:'1h',unread:0},
+  {id:'mehdi',name:'Mehdi Tazi',avatar:'MT',color:'#f59e0b',online:true,preview:'Meeting at 3pm?',time:'2h',unread:1},
+  {id:'amina',name:'Amina Ouali',avatar:'AO',color:'#ec4899',online:false,preview:'Sent you the files',time:'Yesterday',unread:0},
+  {id:'omar',name:'Omar Belhaj',avatar:'OB',color:'#ef4444',online:true,preview:'Bug fixed! 🚀',time:'Yesterday',unread:0},
+];
+
+const CONVOS={
+  yassine:[
+    {me:false,text:'Hey! Did you check the new design mockups?',time:'10:02 AM'},
+    {me:true,text:'Yes just saw them! Looking really clean 🔥',time:'10:04 AM'},
+    {me:false,text:'Thanks! I updated the color palette too.',time:'10:05 AM'},
+    {me:true,text:'The gradient looks much better now. Ship it!',time:'10:06 AM'},
+    {me:false,text:'Sounds great! Let me check.',time:'10:08 AM'},
+  ],
+  khalid:[
+    {me:false,text:'The API endpoint is now live 🚀',time:'9:30 AM'},
+    {me:true,text:'Great work! I will integrate it today',time:'9:35 AM'},
+    {me:false,text:'The design is ready for review',time:'9:50 AM'},
+  ],
+  salma:[
+    {me:true,text:'Can you review the PR when you get a chance?',time:'Yesterday'},
+    {me:false,text:'Of course! Give me 30 mins',time:'Yesterday'},
+    {me:true,text:'No rush, take your time 🙏',time:'Yesterday'},
+    {me:false,text:'Thanks, I will handle it 👍',time:'Yesterday'},
+  ],
+  mehdi:[
+    {me:false,text:'Are we meeting today to discuss the project?',time:'8:00 AM'},
+    {me:true,text:'Yes, afternoon works for me',time:'8:15 AM'},
+    {me:false,text:'Meeting at 3pm?',time:'8:20 AM'},
+  ],
+  amina:[
+    {me:false,text:'I finished the report, sending now',time:'Yesterday'},
+    {me:false,text:'Sent you the files',time:'Yesterday'},
+    {me:true,text:'Got it, thanks! Will review tonight',time:'Yesterday'},
+  ],
+  omar:[
+    {me:true,text:'That login bug is blocking QA',time:'Yesterday'},
+    {me:false,text:'On it! Should be quick',time:'Yesterday'},
+    {me:false,text:'Bug fixed! 🚀',time:'Yesterday'},
+    {me:true,text:'Perfect, merging now 👍',time:'Yesterday'},
+  ],
+};
+
+const REPLIES={
+  yassine:['Got it! 👍','Will do!','Sounds good!','Let me check that out','That looks amazing! 🔥','Can we jump on a call?','I will send the files shortly'],
+  khalid:['Great progress!','Perfect timing','I will review it now','Looks solid 💪','Almost done with my part'],
+  salma:['No worries!','I appreciate it 🙏','That makes sense','Will update you soon'],
+  mehdi:['3pm works!','Confirmed ✅','See you then!','Just add me on the call'],
+  amina:['Thanks for the files!','Reviewing now...','Looks good so far!'],
+  omar:['You are the best! 🚀','Appreciate the fast fix','Merged! ✅'],
+};
+
+let activeId='yassine';
+let typingTimer=null;
+
+function renderContacts(filter=''){
+  const list=document.getElementById('contactList');
+  list.innerHTML='';
+  CONTACTS.filter(c=>c.name.toLowerCase().includes(filter.toLowerCase())).forEach(c=>{
+    const div=document.createElement('div');
+    div.className='contact'+(c.id===activeId?' active':'');
+    div.innerHTML=`
+      <div class="avatar" style="background:${c.color};width:40px;height:40px;font-size:.75rem">
+        ${c.avatar}${c.online?'<div class="online-dot"></div>':''}
+      </div>
+      <div class="contact-info">
+        <div class="contact-name">${c.name}</div>
+        <div class="contact-preview">${c.preview}</div>
+      </div>
+      <div class="contact-meta">
+        <span class="contact-time">${c.time}</span>
+        ${c.unread?`<span class="badge">${c.unread}</span>`:''}
+      </div>`;
+    div.onclick=()=>switchContact(c.id);
+    list.appendChild(div);
+  });
+}
+
+function switchContact(id){
+  activeId=id;
+  const c=CONTACTS.find(x=>x.id===id);
+  c.unread=0;
+  document.getElementById('headerName').textContent=c.name;
+  document.getElementById('headerAvatar').textContent=c.avatar;
+  document.getElementById('headerAvatar').style.background=`linear-gradient(135deg,${c.color},#4f8ef7)`;
+  renderContacts();
+  renderMessages();
+}
+
+function renderMessages(){
+  const box=document.getElementById('messages');
+  const msgs=CONVOS[activeId]||[];
+  box.innerHTML=`<div class="date-divider"><span>Today</span></div>`;
+  msgs.forEach((m,i)=>{
+    const row=document.createElement('div');
+    row.className='msg-row '+(m.me?'me':'them');
+    const c=CONTACTS.find(x=>x.id===activeId);
+    if(!m.me){
+      row.innerHTML=`
+        <div class="avatar-sm" style="background:${c.color}">${c.avatar}</div>
+        <div>
+          <div class="bubble them">${m.text}</div>
+          <div class="msg-time">${m.time}</div>
+        </div>`;
+    } else {
+      const isLast=i===msgs.length-1||!msgs[i+1].me;
+      row.innerHTML=`
+        <div>
+          <div class="bubble me">${m.text}</div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:2px">
+            <span class="msg-time">${m.time}</span>
+            ${isLast?'<i class="fa-solid fa-check-double read-receipt"></i>':''}
+          </div>
+        </div>`;
+    }
+    box.appendChild(row);
+  });
+  box.scrollTop=box.scrollHeight;
+}
+
+function sendMessage(){
+  const input=document.getElementById('msgInput');
+  const text=input.value.trim();
+  if(!text)return;
+  const msgs=CONVOS[activeId];
+  const now=new Date();
+  const time=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  msgs.push({me:true,text,time});
+  // update preview
+  const c=CONTACTS.find(x=>x.id===activeId);
+  c.preview=text;c.time='now';
+  input.value='';
+  renderContacts();renderMessages();
+  // auto reply with typing indicator
+  const replies=REPLIES[activeId]||['OK!','Got it!','Thanks!'];
+  const reply=replies[Math.floor(Math.random()*replies.length)];
+  showTyping();
+  clearTimeout(typingTimer);
+  typingTimer=setTimeout(()=>{
+    hideTyping();
+    msgs.push({me:false,text:reply,time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})});
+    c.preview=reply;c.time='now';
+    renderContacts();renderMessages();
+  },1500+Math.random()*1500);
+}
+
+function showTyping(){
+  const c=CONTACTS.find(x=>x.id===activeId);
+  document.getElementById('typingAvatar').textContent=c.avatar;
+  document.getElementById('typingAvatar').style.background=c.color;
+  document.getElementById('typingLabel').textContent=c.name.split(' ')[0]+' is typing…';
+  document.getElementById('typingRow').style.display='flex';
+  document.getElementById('messages').scrollTop=document.getElementById('messages').scrollHeight+100;
+}
+function hideTyping(){document.getElementById('typingRow').style.display='none';}
+function onKey(e){if(e.key==='Enter')sendMessage();}
+function filterContacts(v){renderContacts(v);}
+
+// Emoji picker
+const EMOJIS=['😀','😂','😍','🥰','😎','🤩','😢','😅','🤔','👍','👎','❤️','🔥','💯','🎉','✅','🚀','💪','🙏','😤','🙌','👀','💡','⚡','🎯'];
+function toggleEmoji(){
+  const p=document.getElementById('emojiPicker');
+  if(p.classList.contains('open')){p.classList.remove('open');return;}
+  p.innerHTML=EMOJIS.map(e=>`<span class="emoji" onclick="addEmoji('${e}')">${e}</span>`).join('');
+  p.classList.add('open');
+}
+function addEmoji(e){document.getElementById('msgInput').value+=e;document.getElementById('emojiPicker').classList.remove('open');document.getElementById('msgInput').focus();}
+document.addEventListener('click',e=>{if(!e.target.closest('#emojiBtn')&&!e.target.closest('#emojiPicker'))document.getElementById('emojiPicker').classList.remove('open');});
+
+renderContacts();renderMessages();
+</script>
+</body>
+</html>
